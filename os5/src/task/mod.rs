@@ -17,7 +17,7 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::loader::get_app_data_by_name;
+use crate::{loader::get_app_data_by_name, sbi};
 use alloc::sync::Arc;
 use lazy_static::*;
 use manager::fetch_task;
@@ -55,21 +55,27 @@ pub fn suspend_current_and_run_next() {
 pub fn exit_current_and_run_next(exit_code: i32) {
     // take from Processor
     let task = take_current_task().unwrap();
+    if task.pid.0 == 0 {
+        sbi::shutdown();
+    }
+    debug!("Try to access inner");
     // **** access current TCB exclusively
     let mut inner = task.inner_exclusive_access();
+    debug!("Access inner ok!");
     // Change status to Zombie
     inner.task_status = TaskStatus::Zombie;
     // Record exit code
     inner.exit_code = exit_code;
     // do not move to its parent but under initproc
-
     // ++++++ access initproc TCB exclusively
     {
+        debug!("Try to access initproc TCB!");
         let mut initproc_inner = INITPROC.inner_exclusive_access();
         for child in inner.children.iter() {
             child.inner_exclusive_access().parent = Some(Arc::downgrade(&INITPROC));
             initproc_inner.children.push(child.clone());
         }
+        debug!("Access initproc TCB OK!");
     }
     // ++++++ release parent PCB
 
