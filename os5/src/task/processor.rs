@@ -4,10 +4,10 @@
 //! the current running state of CPU is recorded,
 //! and the replacement and transfer of control flow of different applications are executed.
 
-
 use super::__switch;
 use super::{fetch_task, TaskStatus};
 use super::{TaskContext, TaskControlBlock};
+use crate::mm::VirtAddr;
 use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
 use alloc::sync::Arc;
@@ -36,6 +36,19 @@ impl Processor {
     }
     pub fn current(&self) -> Option<Arc<TaskControlBlock>> {
         self.current.as_ref().map(|task| Arc::clone(task))
+    }
+
+    pub fn set_val_in_current_task<T: 'static>(&self, addr: VirtAddr, val: T) {
+        *self
+            .current
+            .as_ref()
+            .unwrap()
+            .inner_exclusive_access()
+            .memory_set
+            .translate(addr.floor())
+            .unwrap()
+            .ppn()
+            .get_mut_offset(addr.page_offset()) = val;
     }
 }
 
@@ -88,10 +101,7 @@ pub fn current_user_token() -> usize {
 
 /// Get the mutable reference to trap context of current task
 pub fn current_trap_cx() -> &'static mut TrapContext {
-    current_task()
-        .unwrap()
-        .inner_exclusive_access()
-        .trap_cx()
+    current_task().unwrap().inner_exclusive_access().trap_cx()
 }
 
 /// Return to idle control flow for new scheduling

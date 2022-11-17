@@ -252,6 +252,41 @@ impl MemorySet {
         //*self = Self::new_bare();
         self.areas.clear();
     }
+    pub fn mmap(
+        &mut self,
+        start_va: VirtAddr,
+        end_va: VirtAddr,
+        permission: MapPermission,
+    ) -> bool {
+        for vpn in VPNRange::new(start_va.floor(), end_va.ceil()) {
+            if self
+                .page_table
+                .translate(vpn)
+                .is_some_and(|pte| pte.is_valid())
+            {
+                debug!("{vpn:?} is already mapped!");
+                return false;
+            }
+            if !self.page_table.mmap(
+                vpn,
+                PTEFlags::V | PTEFlags::from_bits(permission.bits).unwrap(),
+            ) {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn munmap(&mut self, start_va: VirtAddr, end_va: VirtAddr) -> bool {
+        let vpn_start = start_va.floor();
+        let vpn_end = end_va.ceil();
+        for vpn in VPNRange::new(vpn_start, vpn_end) {
+            if !self.page_table.munmap(vpn) {
+                return false;
+            }
+        }
+        true
+    }
 }
 
 /// map area structure, controls a contiguous piece of virtual memory
