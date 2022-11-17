@@ -21,6 +21,7 @@
 #![feature(alloc_error_handler)]
 #![feature(let_else)]
 #![feature(is_some_with)]
+#![feature(result_option_inspect)]
 
 #[macro_use]
 extern crate bitflags;

@@ -1,6 +1,6 @@
 //! Types related to task management & Functions for completely changing TCB
 
-use super::{TaskContext, add_task};
+use super::{add_task, TaskContext};
 use super::{pid_alloc, KernelStack, PidHandle};
 use crate::config::{MAX_SYSCALL_NUM, TRAP_CONTEXT};
 use crate::loader::get_app_data_by_name;
@@ -10,6 +10,10 @@ use crate::trap::{trap_handler, TrapContext};
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use core::cell::RefMut;
+
+const INITIAL_PRIORITY: usize = 16;
+const BIG_STRIDE: usize = 65536;
+const INITIAL_STRIDE: usize = BIG_STRIDE / INITIAL_PRIORITY;
 
 /// Task control block structure
 ///
@@ -51,6 +55,10 @@ pub struct TaskControlBlockInner {
     pub syscall_times: [u32; MAX_SYSCALL_NUM],
     /// Start time in ms
     pub start_time: usize,
+    /// Stride, or priority
+    pub stride: usize,
+    /// Pass for the stride schedule algorithm
+    pub pass: usize,
 }
 
 /// Simple access to its internal fields
@@ -71,6 +79,10 @@ impl TaskControlBlockInner {
     }
     pub fn is_zombie(&self) -> bool {
         self.status() == TaskStatus::Zombie
+    }
+    pub fn set_priority(&mut self, prio: usize) {
+        assert!(prio >= 2);
+        self.stride = BIG_STRIDE / prio;
     }
 }
 
@@ -110,6 +122,8 @@ impl TaskControlBlock {
                     exit_code: 0,
                     syscall_times: [0; MAX_SYSCALL_NUM],
                     start_time: 0,
+                    stride: INITIAL_STRIDE,
+                    pass: 0,
                 })
             },
         };
@@ -175,6 +189,8 @@ impl TaskControlBlock {
                     exit_code: 0,
                     syscall_times: [0; MAX_SYSCALL_NUM],
                     start_time: 0,
+                    stride: INITIAL_STRIDE,
+                    pass: 0,
                 })
             },
         });
@@ -219,6 +235,8 @@ impl TaskControlBlock {
                     exit_code: 0,
                     syscall_times: [0; MAX_SYSCALL_NUM],
                     start_time: 0,
+                    stride: INITIAL_STRIDE,
+                    pass: 0,
                 })
             },
         });

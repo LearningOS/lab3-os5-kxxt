@@ -140,8 +140,14 @@ pub fn sys_task_info(ti: *mut TaskInfo) -> isize {
 }
 
 // YOUR JOB: 实现sys_set_priority，为任务添加优先级
-pub fn sys_set_priority(_prio: isize) -> isize {
-    -1
+pub fn sys_set_priority(prio: isize) -> isize {
+    if prio < 2 {
+        return -1;
+    }
+    let current = current_task();
+    let mut inner = current.as_ref().unwrap().inner_exclusive_access();
+    inner.set_priority(prio as usize);
+    prio
 }
 
 bitflags! {
