@@ -55,17 +55,17 @@ impl TaskControlBlockInner {
         &self.task_cx_ptr as *const usize
     }
     */
-    pub fn get_trap_cx(&self) -> &'static mut TrapContext {
+    pub fn trap_cx(&self) -> &'static mut TrapContext {
         self.trap_cx_ppn.get_mut()
     }
-    pub fn get_user_token(&self) -> usize {
+    pub fn user_token(&self) -> usize {
         self.memory_set.token()
     }
-    fn get_status(&self) -> TaskStatus {
+    fn status(&self) -> TaskStatus {
         self.task_status
     }
     pub fn is_zombie(&self) -> bool {
-        self.get_status() == TaskStatus::Zombie
+        self.status() == TaskStatus::Zombie
     }
 }
 
@@ -107,7 +107,7 @@ impl TaskControlBlock {
             },
         };
         // prepare TrapContext in user space
-        let trap_cx = task_control_block.inner_exclusive_access().get_trap_cx();
+        let trap_cx = task_control_block.inner_exclusive_access().trap_cx();
         *trap_cx = TrapContext::app_init_context(
             entry_point,
             user_sp,
@@ -133,7 +133,7 @@ impl TaskControlBlock {
         // update trap_cx ppn
         inner.trap_cx_ppn = trap_cx_ppn;
         // initialize trap_cx
-        let trap_cx = inner.get_trap_cx();
+        let trap_cx = inner.trap_cx();
         *trap_cx = TrapContext::app_init_context(
             entry_point,
             user_sp,
@@ -177,7 +177,7 @@ impl TaskControlBlock {
         parent_inner.children.push(task_control_block.clone());
         // modify kernel_sp in trap_cx
         // **** access children PCB exclusively
-        let trap_cx = task_control_block.inner_exclusive_access().get_trap_cx();
+        let trap_cx = task_control_block.inner_exclusive_access().trap_cx();
         trap_cx.kernel_sp = kernel_stack_top;
         // return
         task_control_block
